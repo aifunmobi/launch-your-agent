@@ -4,66 +4,61 @@
     "company": "Acme Analytics",
     "problem": "Every Monday I spend ~3 hours pulling competitor pricing and feature changes into a digest for the team.",
     "created": "2026-06-14",
-    "skill_version": "0.1"
+    "skill_version": "1.0"
   },
   "agent": {
     "name": "competitor-digest",
-    "model": "claude-opus-4-8",
-    "model_rationale": "Newest Opus-class — the default; quality first, a weekly run still costs cents.",
-    "version": null,
-    "system_summary": "Researches the 5 named competitors' public sites, pricing pages, and changelogs; writes a weekly digest to /mnt/session/outputs/digest.md.",
+    "subagent_file": ".claude/agents/competitor-digest.md",
+    "model": "inherit",
+    "model_rationale": "Inherits the model you're already signed into Claude Code with — no API key, no per-run cost. Pin 'opus' or 'sonnet' here if you want this agent to ignore the session model.",
+    "system_summary": "Researches the 5 named competitors' public sites, pricing pages, and changelogs; writes a weekly digest to outputs/digest.md.",
     "never_dos": [
       "Never contact anyone or post anywhere — research and drafting only",
       "Never present guesses as facts; mark anything unverified"
     ]
   },
   "outcome": {
-    "description": "Produce this week's competitor digest as digest.md",
+    "description": "Produce this week's competitor digest as outputs/digest.md",
+    "grader_file": ".claude/agents/competitor-digest-grader.md",
     "rubric_criteria": [
-      "digest.md exists and covers all 5 competitors listed in the kickoff",
+      "digest.md exists and covers all 5 competitors listed in the task",
       "Every pricing or feature change has a source link",
       "Each competitor section ends with a one-line 'so what for us'",
       "Anything unchanged since last week is listed in one 'no movement' line, not padded out",
       "No claim appears without a source or an explicit 'unverified' tag"
     ],
-    "max_iterations": 3
+    "max_revisions": 3
   },
   "tools": {
-    "toolset": "agent_toolset_20260401",
-    "enabled": ["bash", "read", "write", "edit", "glob", "grep", "web_search", "web_fetch"],
-    "disabled": [],
-    "permission_overrides": [],
-    "custom_tools": []
+    "enabled": ["Bash", "Read", "Write", "Edit", "Glob", "Grep", "WebSearch", "WebFetch"],
+    "permission_notes": "The subagent's tools: line names these built-ins; settings.json gates which Bash/WebFetch calls the agent may run without asking."
   },
   "connections": {
     "mcp_servers": [],
-    "vault_credentials": [],
-    "github": null,
-    "notes": "v0 uses public web only. Roadmap: Notion MCP + vault credential to read the internal strategy page."
+    "secrets": [],
+    "notes": "v0 uses public web only — no local MCP, no .env. Next: add the Notion MCP server to settings.json + a token in .env to read the internal strategy page."
   },
-  "skills": [],
+  "document_output": [],
   "memory": {
     "stores": [
       {
-        "name": "competitor-history",
+        "dir": "memory/competitor-history",
         "access": "read_write",
-        "purpose": "What each competitor looked like last week, so the agent reports changes rather than re-describing everything."
+        "purpose": "Last week's snapshot per competitor, so runs report changes rather than re-describing everything."
       }
     ]
   },
   "environment": {
-    "name": "competitor-digest-env",
-    "type": "cloud",
-    "networking": "unrestricted",
-    "allowed_hosts": [],
-    "packages": {}
+    "needs": ["python3 with requests"],
+    "install": "pip install requests",
+    "networking": "settings.json allows WebFetch on the competitor domains; everything else asks."
   },
   "schedule": {
     "mode": "scheduled",
     "cron": "0 7 * * 1",
     "timezone": "America/Los_Angeles",
     "human": "Every Monday at 7:00 AM Pacific",
-    "kickoff": "user.define_outcome (task + rubric above)"
+    "mechanism": "launchd plist (macOS) running `claude -p` headless; a crontab line is included as the cross-platform option. Claude Code's own /schedule is the native alternative."
   },
   "evals": {
     "cases": [
@@ -71,36 +66,32 @@
       {"name": "week-of-jun-01", "input": "evals/week-of-jun-01/", "expected": "Hand-written digest", "last_verdict": null},
       {"name": "week-of-jun-08", "input": "evals/week-of-jun-08/", "expected": "Hand-written digest", "last_verdict": null}
     ],
-    "notes": "Case 1 is the v0 input; the other two are held back as a regression check before promoting any new agent version."
-  },
-  "defaults_applied": {
-    "iteration_bound": "Outcome stops after 3 grade-and-improve cycles",
-    "write_actions": "None in v0 — the agent drafts, humans send"
+    "notes": "Case 1 is the v0 input; the other two are held back as a regression check. evals/run-evals.sh runs them locally before promoting any new agent version."
   },
   "interface": {
     "who": "Lamis + 2 teammates",
-    "how": "Digest lands as a file; Lamis pastes it into Slack for now. Console for run history."
+    "how": "Digest lands in outputs/; Lamis pastes it into Slack for now. runs/ holds the history."
   },
   "next_directions": [
     {
       "what": "Let the agent post the digest to Slack itself",
       "why_deferred": "Write-action to an external system — kept human-in-the-loop for v0",
-      "how": "Add the Slack MCP server + a vault credential; gate the toolset always_ask so Lamis approves each post"
+      "how": "Add a Slack MCP server to settings.json + a token in .env; keep it gated so Lamis confirms each post"
     },
     {
       "what": "Pull the internal strategy doc into context",
       "why_deferred": "Needs a Notion credential that wasn't on hand during the session",
-      "how": "Notion MCP server + vault mcp_oauth credential; reference the doc in the kickoff"
+      "how": "Add the Notion MCP server locally + a token in .env; reference the doc in the task"
     },
     {
       "what": "Lock networking down to only the competitor sites",
-      "why_deferred": "Hardening — unrestricted is fine while the agent is read-only",
-      "how": "Switch the environment to networking: limited with the competitor domains in allowed_hosts"
+      "why_deferred": "Hardening — leaving the rest on 'ask' is fine while the agent is read-only",
+      "how": "Tighten settings.json permissions to allow WebFetch only on the competitor domains; deny the rest"
     },
     {
       "what": "Re-run the 3 eval cases before promoting any new agent version",
       "why_deferred": "Process habit, not a build task",
-      "how": "Run evals/run-evals.sh against the new version; only update the deployment when verdicts hold"
+      "how": "Run evals/run-evals.sh against the new agent file; promote to the schedule only when verdicts hold"
     }
   ],
   "ids": {}

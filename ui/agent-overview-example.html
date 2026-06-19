@@ -128,19 +128,8 @@
   .ver-why { color:var(--sub); font-size:12.5px; margin:3px 0; }
   .ver-how { font-size:12.5px; } .ver-how::before { content:"How: "; color:var(--clay); font-weight:600; }
 
-  a.console { color:var(--live-bright); text-decoration:none; border-bottom:1px dotted rgba(34,134,92,.5); }
-  a.console:hover { border-bottom-style:solid; }
   footer { padding:20px 2px 0; color:var(--mut); font-family:var(--mono); font-size:11px; }
-  footer a { color:var(--sub); }
-
-  @media (max-width: 1020px) {
-    .pipeline { grid-template-columns:1fr; }
-    .joint { height:26px; }
-    .joint::before { width:1.5px; height:100%; background:linear-gradient(180deg,var(--hairline),rgba(34,134,92,.5));
-                     clip-path:polygon(0 0,100% 0,100% calc(100% - 8px),250% calc(100% - 8px),50% 100%,-150% calc(100% - 8px),0 calc(100% - 8px)); }
-    .lane-grid { grid-template-columns:1fr; }
-    .stats { display:none; }
-  }
+  footer code { font-size:11px; }
 </style>
 </head>
 <body>
@@ -153,20 +142,18 @@
       <div>
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
           <h1>competitor-digest</h1>
-          <!-- swap to: <span class="statepill live"><span class="led live"></span>DEPLOYED · LIVE</span> once launched -->
+          <!-- swap to: <span class="statepill live"><span class="led live"></span>LIVE · SCHEDULED</span> once it's on a schedule -->
           <span class="statepill planned"><span class="led planned"></span>PLANNED · NOT LAUNCHED</span>
         </div>
-        <div class="byline">Claude Managed Agent · Lamis Mukta · Acme Analytics · created 2026-06-14</div>
+        <div class="byline">local Claude Code agent · Lamis Mukta · Acme Analytics · created 2026-06-14</div>
       </div>
     </div>
     <div class="stats">
-      <div class="stat"><div class="stat-k">Model</div><div class="stat-v">claude-opus-4-8</div></div>
+      <div class="stat"><div class="stat-k">Model</div><div class="stat-v">inherits your login</div></div>
       <div class="stat"><div class="stat-k">Runs</div><div class="stat-v">Mon 7:00 <span class="dim">PT</span></div></div>
-      <!-- once live, every ID on this page links to its Console deep link, e.g.
-           <a class="console" href="https://platform.claude.com/workspaces/<workspace>/agents/<AGENT_ID>">agent_…</a>
-           (same pattern for /sessions/<id> and /deployments/<id>; swap <workspace> for the founder's) -->
-      <div class="stat"><div class="stat-k">Agent</div><div class="stat-v"><span class="dim">at launch</span></div></div>
-      <div class="stat"><div class="stat-k">Deployment</div><div class="stat-v"><span class="dim">after first pass</span></div></div>
+      <!-- once it's running, the run history lives in this folder under runs/ and outputs/ — no console, nothing to log into -->
+      <div class="stat"><div class="stat-k">Agent</div><div class="stat-v"><span class="dim">.claude/agents/</span></div></div>
+      <div class="stat"><div class="stat-k">Schedule</div><div class="stat-v"><span class="dim">after first pass</span></div></div>
     </div>
   </div>
 
@@ -180,19 +167,19 @@
     <div class="col">
       <p class="col-title">Trigger</p>
       <!-- The trigger node matches how the agent actually starts:
-           · scheduled  → 🗓️ Deployment node (this example)
-           · on-demand  → ▶️ "On-demand session" as the primary node (meta: manual · LAUNCH.md), with
-                          "🗓️ Deployment — not scheduled, see the version rail" as a one-line footer or ghost node
-           · event-driven → 🔌 "Triggered by your app" node (their backend calls POST /sessions or /deployments/<id>/run),
-                          with the call shape named in the body -->
+           · scheduled  → 🗓️ Schedule node (this example): launchd/cron runs `claude -p` headless
+           · on-demand  → ▶️ "On-demand run" as the primary node (meta: manual · run.sh / /competitor-digest), with
+                          "🗓️ Schedule — not scheduled, see the version rail" as a one-line footer or ghost node
+           · event-driven → 🔌 "Triggered by your app" node (a small local trigger script invokes the agent),
+                          with the trigger script named in the body -->
       <div class="node key grow">
-        <div class="node-head"><span class="node-icon">🗓️</span><h2>Deployment</h2><span class="node-meta">cron · <b>0 7 * * 1</b></span></div>
+        <div class="node-head"><span class="node-icon">🗓️</span><h2>Schedule</h2><span class="node-meta">launchd · <b>0 7 * * 1</b></span></div>
         <div class="node-body">
-          <div class="field"><div class="field-k">schedule · expression / timezone</div><strong>Every Monday · 7:00 AM</strong> <span class="sub small">America/Los_Angeles</span></div>
+          <div class="field"><div class="field-k">schedule · launchd StartCalendarInterval</div><strong>Every Monday · 7:00 AM</strong> <span class="sub small">America/Los_Angeles</span></div>
           <div class="field"><div class="field-k">Status</div><span class="tag">created after the first run passes</span></div>
-          <div class="field"><div class="field-k">initial_events</div><p class="small sub">Each firing replays the 🎯 outcome (right) into a fresh ▶️ session in the sandbox — nobody at a keyboard.</p></div>
+          <div class="field"><div class="field-k">mechanism · what fires</div><p class="small sub">Each firing runs <code>claude -p</code> headless in this folder against <code>first_prompt.txt</code> — using your existing Claude Code login, nobody at a keyboard. A <code>crontab</code> line is the portable option.</p></div>
         </div>
-        <div class="node-foot">▶️ Also runs on demand any time — <code>LAUNCH.md</code> fires the same agent with the same outcome.</div>
+        <div class="node-foot">▶️ Also runs on demand any time — <code>run.sh</code> (or <code>/competitor-digest</code>) fires the same agent against the same outcome.</div>
       </div>
     </div>
 
@@ -201,32 +188,32 @@
     <div class="col">
       <p class="col-title">Worker</p>
       <div class="env-frame">
-        <span class="env-tab">📦 environment · type: cloud · networking: unrestricted · packages: none</span>
+        <span class="env-tab">📦 environment · your machine · settings.json permissions · packages: python3+requests</span>
 
         <div class="node key">
-          <div class="node-head"><span class="node-icon">🤖</span><h2>Agent — competitor-digest</h2><span class="node-meta"><b>claude-opus-4-8</b> · v1 at launch</span></div>
+          <div class="node-head"><span class="node-icon">🤖</span><h2>Agent — competitor-digest</h2><span class="node-meta">model: <b>inherits your Claude Code login</b> · v1 at launch</span></div>
           <div class="node-body">
-            <div class="field"><div class="field-k">system · the job</div>
-              <p class="small">Researches the 5 named competitors' public sites, pricing pages, and changelogs; writes a weekly digest to <code>/mnt/session/outputs/digest.md</code>.</p></div>
+            <div class="field"><div class="field-k">subagent · .claude/agents/competitor-digest.md</div>
+              <p class="small">Researches the 5 named competitors' public sites, pricing pages, and changelogs; writes a weekly digest to <code>outputs/digest.md</code>.</p></div>
           </div>
         </div>
 
         <div class="attach-grid">
           <div class="attach">
             <h3>🛠️ Tools</h3>
-            <p><code>tools[] · agent_toolset_20260401</code><br><span class="tag on">web_search</span><span class="tag on">web_fetch</span><span class="tag">bash</span><span class="tag">read</span><span class="tag">write</span><span class="tag">edit</span><span class="tag">glob</span><span class="tag">grep</span></p>
+            <p><code>tools[] · subagent frontmatter</code><br><span class="tag on">WebSearch</span><span class="tag on">WebFetch</span><span class="tag">Bash</span><span class="tag">Read</span><span class="tag">Write</span><span class="tag">Edit</span><span class="tag">Glob</span><span class="tag">Grep</span></p>
           </div>
           <div class="attach">
-            <h3>🧠 Memory store</h3>
-            <p><code>resources[] · memory_store</code> <span class="tag good">read_write</span> <strong>competitor-history</strong> — last week's snapshot per competitor, so runs report changes, not re-descriptions.</p>
+            <h3>🧠 Memory</h3>
+            <p><code>memory · local folder</code> <span class="tag good">read_write</span> <strong>memory/competitor-history</strong> — last week's snapshot per competitor, so runs report changes, not re-descriptions.</p>
           </div>
           <div class="attach ghost">
-            <h3>🔌 Connectors &amp; 🔐 vaults</h3>
-            <p><code>mcp_servers[]</code> + <code>vault_ids[]</code> — empty in v0, public web only. Notion + Slack sit in the version rail below.</p>
+            <h3>🔌 Connectors &amp; 🔐 secrets</h3>
+            <p><code>mcp_servers[]</code> + <code>.env</code> — empty in v0, public web only. Notion + Slack (local MCP + a token in <code>.env</code>) sit in the version rail below.</p>
           </div>
           <div class="attach ghost">
-            <h3>📄 Skills</h3>
-            <p><code>skills[]</code> — empty; plain markdown output.</p>
+            <h3>📄 Document output</h3>
+            <p><code>document_output[]</code> — empty; plain markdown output. xlsx/docx/pdf would come from local libs via <code>Bash</code>.</p>
           </div>
         </div>
       </div>
@@ -238,20 +225,20 @@
       <p class="col-title">Output &amp; grading</p>
 
       <div class="node">
-        <div class="node-head"><span class="node-icon">📤</span><h2>Deliverable</h2><span class="node-meta">files api</span></div>
+        <div class="node-head"><span class="node-icon">📤</span><h2>Deliverable</h2><span class="node-meta">outputs/digest.md</span></div>
         <div class="node-body">
-          <p class="small"><code>digest.md</code> — the weekly competitor digest, fetched from the run's outputs.</p>
+          <p class="small"><code>outputs/digest.md</code> — the weekly competitor digest, written straight to this folder.</p>
           <div class="field"><div class="field-k">Guardrails in effect</div>
-            <span class="tag">max_iterations: 3</span><span class="tag">drafts only — no write connectors wired</span></div>
+            <span class="tag">max_revisions: 3</span><span class="tag">drafts only — no write connectors wired</span></div>
         </div>
       </div>
 
       <div class="node key grow">
-        <div class="node-head"><span class="node-icon">🎯</span><h2>Outcome</h2><span class="node-meta"><b>user.define_outcome</b> · max_iterations 3</span></div>
+        <div class="node-head"><span class="node-icon">🎯</span><h2>Outcome</h2><span class="node-meta">grader subagent · max_revisions 3</span></div>
         <div class="node-body">
-          <p class="small sub" style="margin-bottom:8px;">Your definition of done — <code>rubric.content</code>, graded by the platform every run.</p>
+          <p class="small sub" style="margin-bottom:8px;">Your definition of done — <code>outcome.md</code>, scored every run by the local grader subagent <code>.claude/agents/competitor-digest-grader.md</code>.</p>
           <ol class="rubric small">
-            <li>digest.md exists and covers all 5 competitors listed in the kickoff</li>
+            <li>digest.md exists and covers all 5 competitors listed in the task</li>
             <li>Every pricing or feature change has a source link</li>
             <li>Each competitor section ends with a one-line "so what for us"</li>
             <li>Anything unchanged since last week sits in one "no movement" line</li>
@@ -265,13 +252,13 @@
   <!-- ── evals + run log ── -->
   <div class="lane-grid">
     <div class="lane">
-      <div class="lane-head"><span class="node-icon">📜</span><h2>Sessions · run log</h2><span class="lane-meta">no runs yet</span></div>
+      <div class="lane-head"><span class="node-icon">📜</span><h2>Runs · run log</h2><span class="lane-meta">no runs yet</span></div>
       <div class="lane-body">
         <div class="overflow">
         <table>
-          <thead><tr><th>Run</th><th>Session</th><th>Rubric</th><th>Verdict</th><th>Note</th></tr></thead>
+          <thead><tr><th>Run</th><th>Log file</th><th>Rubric</th><th>Verdict</th><th>Note</th></tr></thead>
           <tbody>
-            <tr><td>—</td><td class="mono">—</td><td>—</td><td><span class="tag">no runs yet</span></td><td class="sub">The first launch fills this in.</td></tr>
+            <tr><td>—</td><td class="mono">—</td><td>—</td><td><span class="tag">no runs yet</span></td><td class="sub">The first run writes runs/&lt;date&gt;.md.</td></tr>
           </tbody>
         </table>
         </div>
@@ -290,7 +277,7 @@
           </tbody>
         </table>
         </div>
-        <p class="small sub" style="margin:.5em 0 0;">Case 1 is the v0 input; the rest are held back and re-run before promoting any new agent version.</p>
+        <p class="small sub" style="margin:.5em 0 0;">Case 1 is the v0 input; the rest are held back and re-run via <code>evals/run-evals.sh</code> before promoting any new agent version.</p>
       </div>
     </div>
   </div>
@@ -304,31 +291,31 @@
           <div class="ver-tag">v1</div>
           <div class="ver-what">Agent posts the digest to Slack itself</div>
           <div class="ver-why">Write-action — kept human-in-the-loop for v0</div>
-          <div class="ver-how">Slack MCP server + 🔐 vault credential, toolset gated <span class="mono">always_ask</span></div>
+          <div class="ver-how">Slack MCP server in <span class="mono">settings.json</span> + a token in <span class="mono">.env</span>, kept gated so Lamis confirms each post</div>
         </div>
         <div class="ver">
           <div class="ver-tag">v2</div>
           <div class="ver-what">Pull the internal strategy doc into context</div>
           <div class="ver-why">Needs a Notion credential not on hand in the session</div>
-          <div class="ver-how">Notion MCP + vault <span class="mono">mcp_oauth</span>; reference the doc in the kickoff</div>
+          <div class="ver-how">Notion MCP server locally + a token in <span class="mono">.env</span>; reference the doc in the task</div>
         </div>
         <div class="ver">
           <div class="ver-tag">v3</div>
           <div class="ver-what">Lock networking to the competitor sites only</div>
-          <div class="ver-why">Hardening — unrestricted is fine while read-only</div>
-          <div class="ver-how">Environment <span class="mono">networking: limited</span> + <span class="mono">allowed_hosts</span></div>
+          <div class="ver-why">Hardening — leaving the rest on "ask" is fine while read-only</div>
+          <div class="ver-how">Tighten <span class="mono">settings.json</span> to allow <span class="mono">WebFetch(domain:…)</span> on the competitor sites; deny the rest</div>
         </div>
         <div class="ver">
           <div class="ver-tag">always</div>
           <div class="ver-what">Re-run the eval cases before promoting a new version</div>
           <div class="ver-why">Process habit, not a build task</div>
-          <div class="ver-how"><span class="mono">evals/run-evals.sh</span> against the new version; promote only when verdicts hold</div>
+          <div class="ver-how"><span class="mono">evals/run-evals.sh</span> against the new agent file; promote to the schedule only when verdicts hold</div>
         </div>
       </div>
     </div>
   </div>
 
-  <footer>generated from build-sheet.json by claude code · live runs &amp; traces: <a href="https://platform.claude.com/workspaces/default/agents">open the console</a> (your key's workspace — swap "default" if yours differs)</footer>
+  <footer>generated from build-sheet.json by claude code · runs &amp; outputs live in this folder (<code>runs/</code>, <code>outputs/</code>)</footer>
 </div>
 </body>
 </html>

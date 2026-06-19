@@ -3,15 +3,19 @@
 
 # launch-your-agent
 
-A [Claude Code](https://code.claude.com) skill that helps a technical founder build whatever they want on **Claude Managed Agents (CMA)** — an internal worker, a piece of their product, a customer-facing agent. It interviews you about what you want to build, scopes a v0, launches it in your own account, grades it against your own definition of done, iterates, and (if it should run on a clock) puts it on a scheduled deployment — with everything bigger laid out as an explicit v1/v2 plan.
+A [Claude Code](https://code.claude.com) skill that helps a technical founder build whatever they want as a **local Claude Code agent** — an internal worker, a piece of their product, a customer-facing agent. It interviews you about what you want to build, scopes a v0, materializes it as Claude Code primitives on your own machine, runs it, grades it against your own definition of done, iterates, and (if it should run on a clock) puts it on a local cron/launchd schedule — with everything bigger laid out as an explicit v1/v2 plan.
+
+The agent runs inside the Claude Code you're already signed in to. No Anthropic API key, no API access, nothing billed per run.
 
 > Reference implementation. Not maintained and not accepting contributions. Licensed under [Apache 2.0](./LICENSE).
+
+**New here?** [`USER-GUIDE.md`](./USER-GUIDE.md) is a one-page walkthrough: install → menu → build → run → schedule.
 
 ## Quickstart
 
 ```bash
-git clone <this-repo>
-cd <this-repo>
+git clone https://github.com/aifunmobi/launch-your-agent.git
+cd launch-your-agent
 claude
 ```
 
@@ -21,29 +25,48 @@ Then type:
 /launch-your-agent
 ```
 
-The skills in `.claude/skills/` are picked up automatically when you run Claude Code inside this folder — nothing to install.
+You'll get a small **menu** — build a new agent, start from a template, run/check an existing one, or just see what this does — then it takes you from there. (Already know what you want? Say it on the same line, e.g. `/launch-your-agent build me a weekly competitor digest`, and it skips straight to building.)
+
+The skills in `.claude/skills/` are picked up automatically when you run Claude Code inside this folder — nothing to install. To make `/launch-your-agent` available in **every** folder on your machine, copy both skills into your user skills dir: `cp -R .claude/skills/launch-your-agent .claude/skills/wrap-up ~/.claude/skills/`.
 
 When you're done (or any time later), `/wrap-up` regenerates the overview page, recaps every primitive you now own, and suggests the next 1–2 upgrades.
 
 ## What you need
 
-- Claude Code installed and signed in.
-- An Anthropic API key for **your own** account (you'll create it during the flow at platform.claude.com → API keys; it goes into a local `.env` file, never into the chat). Runs cost cents.
+- **Claude Code, installed and signed in.** That's it. The agent runs on your existing Claude Code login (subscription or whatever login you already use).
+- **No Anthropic API key.** Nothing to create at platform.claude.com, no key to paste into the chat. Your Claude Code login is not an "API token" and we never ask for one.
+- **Nothing billed per run.** There's no per-run cost — the agent uses the session you already have.
+
+(If your design eventually wants a *third-party* connector — say a Slack token — that's a separate, optional thing. It lives in a local `.env`, it is not an Anthropic key, and the default is to mock it until you choose to wire it.)
 
 ## What you walk away with
 
-- A live managed agent in your Console (agent + environment + graded run, plus a scheduled deployment if your task recurs).
-- A `my-agent/` folder: the build sheet, the exact API payloads, a resumable launch script, an eval scaffold, an overview page, and a NEXT-DIRECTIONS.md laying out v1/v2.
+A portable `my-agent/` folder you can drop anywhere Claude Code runs — `cd` into it, run `claude`, and `/<name>` works. It contains:
+
+- the **agent** — a Claude Code subagent (`.claude/agents/<name>.md`);
+- its **local grader** — a grader subagent that scores each run against your rubric;
+- a **`/<name>` slash command** that runs the agent on the task;
+- an **outcome rubric** (`outcome.md`) — your binary definition of done;
+- an **eval scaffold** (`evals/`) — held-back cases plus a local run loop;
+- a **`runs/` log** — one markdown file per run (this is your record; there's no Console);
+- a live **overview page** (`agent-overview.html`);
+- a **`NEXT-DIRECTIONS.md`** laying out v1/v2;
+- and, if the task recurs, a **local cron/launchd schedule** that runs the agent headless on a clock.
 
 ## Repo layout
 
 | Path | What it is |
 |---|---|
-| `.claude/skills/launch-your-agent/` | The main skill: 4 phases (interview → stage & launch → grade & iterate → run without you) + references (interview mapping, verified API call shapes, examples bank, overview template) |
+| `USER-GUIDE.md` | One-page walkthrough: install → menu → build → run → schedule |
+| `.claude/skills/launch-your-agent/` | The main skill: 4 phases (interview → materialize & run → grade & iterate → run without you), preceded by a Phase 0 menu, + `references/` (interview mapping, local runtime command shapes, examples bank, mock connectors, overview template, example build sheet) |
+| `.claude/skills/launch-your-agent/references/interview.md` | How interview answers map to local Claude Code primitives |
+| `.claude/skills/launch-your-agent/references/local-runtime.md` | Verified Claude Code command shapes: subagent files, slash commands, `settings.json` permissions, headless `claude -p`, `run.sh`, scheduling |
+| `.claude/skills/launch-your-agent/references/examples-bank.md` | Sourced example agents and known-good config shapes |
+| `.claude/skills/launch-your-agent/references/mock-connectors.md` | The outbox pattern for mocking connectors until you wire them |
+| `.claude/skills/launch-your-agent/references/overview-template.html` | Template for the live-schema overview page |
+| `.claude/skills/launch-your-agent/references/build-sheet.example.json` | Worked example build sheet (byte-identical to `ui/build-sheet.example.json`) |
 | `.claude/skills/wrap-up/` | Companion skill: explicit close-out / status check for a built agent |
-| `cma-primitives.md` | Inventory of CMA primitives and limits, from the public docs |
-| `interview-to-config.md` | Background: how interview answers map to CMA primitives |
-| `examples-bank.md` | Sourced example agents and production proof points |
+| `local-agent-primitives.md` | Inventory of the local Claude Code primitives this skill builds on: subagents, slash commands, `settings.json`/permissions, project skills, local MCP, headless `claude -p`, cron/launchd scheduling, the local grader pattern, file-based memory |
 | `ui/` | Example overview page + build sheet |
 
-The CMA documentation is the source of truth for the API: https://platform.claude.com/docs/en/managed-agents/overview
+For the Claude Code primitives themselves, see the subagent and settings docs: https://docs.claude.com/en/docs/claude-code/sub-agents and https://docs.claude.com/en/docs/claude-code/settings

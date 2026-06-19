@@ -17,3 +17,6 @@ CLAUDE.local.md
 
 # Claude worktrees (other sessions)
 .claude/worktrees/
+
+# local plugin artifact (not part of this project)
+ruvector.db

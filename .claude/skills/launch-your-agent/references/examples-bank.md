@@ -1,96 +1,89 @@
 <!-- Copyright 2026 Anthropic PBC -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-# Inspiration & example bank — Claude Managed Agents
+# Inspiration & example bank — local Claude Code agents
 
-> Reference points for the skill: official cookbooks to lift config patterns from, real production deployments to anchor "what good looks like," and officially-grounded archetypes to offer as opening examples in the interview.
-> **Sourcing rule:** everything in §1–§3 traces to an official Anthropic source (cookbook, docs, or Claude/Anthropic blog). Our own unvalidated ideas live in §5 (backlog).
-> Collected 2026-06-14. Live sources win over this file.
+> Reference points for the skill: the real Claude Code capabilities each archetype is built on, the closest known-good config shapes to lift from, and officially-grounded archetypes to offer as opening examples in the interview.
+> **Sourcing rule:** every archetype in §3 maps to a real Claude Code primitive (subagents, slash commands, settings/permissions, headless mode, MCP, local scheduling) — that's its grounding. Our own unvalidated ideas live in §5 (backlog); don't offer those in the interview menu.
+> Collected 2026-06-14. The live Claude Code docs win over this file.
 
 ## How the skill uses this bank
 
-- **In the opening (and any time during Q1):** offer the 2–3 closest archetypes (§3) as concrete examples of what an agent can be; if the founder wants a menu, AskUserQuestion with the closest few.
-- **When emitting the build kit:** if the founder's problem rhymes with a cookbook (§1), lift its config shape (tools, resources, event flow) rather than inventing one — and put the cookbook link in NEXT-DIRECTIONS.md as their "go deeper" reading.
-- **When a founder asks "is anyone actually doing this?":** the production stories (§2) are the answer.
+- **In the opening (and any time during Q1):** offer the 2–3 closest archetypes (§3) as concrete examples of what a local agent can be; if the founder wants a menu, AskUserQuestion with the closest few.
+- **When emitting the agent folder:** if the founder's problem rhymes with an archetype (§3), lift its config shape — which 🤖 subagent body, which `tools:` line, what 🎯 rubric, whether it 🗓️ schedules — rather than inventing one. The closest archetype is the known-good shape; the Claude Code primitives it names (§1) are what it actually rests on.
+- **When a founder asks "can Claude Code really do this locally?":** the answer is the primitive each archetype maps to — a subagent file, a slash command, a `settings.json` permission, a `claude -p` headless run on a launchd/cron schedule. No cloud, no key, runs on the login they already have.
 
 ---
 
-## 1. Official Anthropic cookbooks (the canonical examples)
+## 1. The Claude Code primitives every archetype rests on
 
-Repo: [anthropics/claude-cookbooks → managed_agents/](https://github.com/anthropics/claude-cookbooks/tree/main/managed_agents) · rendered on [platform.claude.com/cookbook](https://platform.claude.com/cookbook/managed-agents-cma-iterate-fix-failing-tests). Python notebooks; include `utilities.py` (e.g. `stream_until_end_turn`), example data, and integration subfolders (slack/, sentry/, linear/, cma-mcp/, self_hosted_sandboxes/).
+These are the real, local building blocks. Each archetype below is just a particular arrangement of them. When you scope a v0, you're choosing which of these to use and how to wire them.
 
-### Applied cookbooks (closest to "a founder's real agent")
-
-| Cookbook | What it builds | Primitives it demonstrates | Good reference for |
+| Primitive | What it is locally | Where it lives | Archetypes that lean on it |
 |---|---|---|---|
-| [data_analyst_agent](https://platform.claude.com/cookbook/managed-agents-data-analyst-agent) | CSV in → narrative HTML report with charts (pandas/plotly) | Environment `packages`, file mounting, streaming, artifact retrieval | Any "analyze my data and report" agent |
-| slack_data_bot | The analyst wrapped in a Slack bot; @mention with a CSV, replies continue the session | Sessions as conversations, their-app-as-interface, resuming sessions | Founders productizing an agent inside a chat surface |
-| [sre_incident_responder](https://platform.claude.com/cookbook/managed-agents-sre-incident-responder) | Pager alert → investigate → open PR → pause for human approval → merge | Event-triggered sessions (webhook), custom tools, human-in-the-loop gating, Skills | Ops/on-call agents; any "act, then wait for approval" flow |
+| **🤖 Subagent** | A scoped agent definition — YAML frontmatter (`name`, `description`, `tools`, `model`) + the system prompt as the markdown body. "Versioning" = git history of the file. | `.claude/agents/<name>.md` | all |
+| **▶️ Slash command** | The kickoff task. Type `/<name>` and the body is sent as the prompt; supports `$ARGUMENTS`. | `.claude/commands/<name>.md` | all |
+| **📦 Settings / permissions** | Tool gating + networking allow-list: `allow` / `ask` / `deny` rules like `WebFetch(domain:…)`, `Bash(python3 run.py)`. | `.claude/settings.json` | all (esp. ops responder, recurring scan) |
+| **🎯 Local grader** | A grader subagent that reads the deliverable + `outcome.md` and returns a per-criterion verdict. No server grader — Claude Code grades locally. | `.claude/agents/<name>-grader.md` | document analyst, recurring scan, data analyst |
+| **🧪 Headless mode** | `claude -p "<prompt>"` runs non-interactively on the **existing signed-in session — no API key**. The basis of `run.sh` and every scheduled run. | `run.sh`, scheduled jobs | all |
+| **🔌 Local MCP** | Connector servers configured in `settings.json` / `.mcp.json` (Slack, Notion, GitHub, …), with 🔐 secrets in a local `.env` (chmod 600, gitignored). Default is still to **mock** (outbox) when not wireable now. | `.claude/settings.json`, `.env` | ops responder, issue→PR, assistant-that-remembers |
+| **🗓️ Scheduling** | A `launchd` plist (macOS, `StartCalendarInterval`) or a `crontab` line that runs `claude -p` headless on a schedule; Claude Code's own `/schedule` is the native alternative. | `schedule/` | recurring scan, document analyst refresh |
+| **🧠 File-based memory** | A local folder of markdown the agent reads/writes with normal file tools across runs. | `memory/` | assistant-that-remembers, recurring scan |
+| **📄 Document output / project skill** | The agent runs local libraries via `Bash` (`openpyxl`/`pandas`, `python-docx`, `python-pptx`, `pandoc`/`weasyprint`) to produce xlsx/docx/pptx/pdf; a reusable house format can be a project skill. | `.claude/skills/<name>/SKILL.md` | document-producing analyst |
+| **🤖×N Subagent roster** | A coordinator subagent that delegates to a small set of scoped specialist subagents, each with its own `tools:` / `model:`. | `.claude/agents/*.md` | specialist team |
 
-### Guided tutorials (one primitive each, end-to-end)
+**Mapping to our interview:** Q2/Q2b ↔ 🎯 outcome + local grader · Q3 connectors ↔ 🔌 local MCP + 🔐 `.env` · Q5 event-driven ↔ a local trigger script + headless run · Q7 memory ↔ 🧠 `memory/` folder · Q8 multiagent ↔ 🤖×N subagent roster · iteration/eval regression ↔ git history of the subagent file + `evals/run-evals.sh`.
 
-| Tutorial | Teaches |
-|---|---|
-| [CMA_iterate_fix_failing_tests](https://platform.claude.com/cookbook/managed-agents-cma-iterate-fix-failing-tests) | **The entry point.** Agent/environment/session, file mounts, streaming event loop — via a do→observe→fix loop on a failing test suite |
-| CMA_orchestrate_issue_to_pr | Multi-turn steering: issue → fix → PR → CI → review → merge, with mid-chain recovery |
-| CMA_explore_unfamiliar_codebase | Grounding in a codebase; adding resources to a *running* session (`sessions.resources.add`) |
-| CMA_gate_human_in_the_loop | Human-in-the-loop **expense approval** via custom tools (`decide()` / `escalate()`), the `requires_action` idle bounce |
-| [CMA_prompt_versioning_and_rollback](https://platform.claude.com/cookbook/managed-agents-cma-prompt-versioning-and-rollback) | Agent versioning, regression detection, version pinning + rollback |
-| [CMA_operate_in_production](https://platform.claude.com/cookbook/managed-agents-cma-operate-in-production) | MCP toolsets, vaults for per-end-user credentials, webhooks, resource lifecycle |
-| [CMA_remember_user_preferences](https://platform.claude.com/cookbook/managed-agents-cma-remember-user-preferences) | Memory stores across sessions — customer preference learning and recall |
-| [CMA_coordinate_specialist_team](https://platform.claude.com/cookbook/managed-agents-cma-coordinate-specialist-team) | Multiagent coordinator + three scoped specialists |
-| [CMA_verify_with_outcome_grader](https://platform.claude.com/cookbook/managed-agents-cma-verify-with-outcome-grader) | Outcomes: the grade-and-revise loop (our default kickoff pattern) |
+### Known-good shapes worth keeping in mind
 
-**Mapping to our interview:** Q2/Q2b ↔ verify_with_outcome_grader · Q3 credentials ↔ operate_in_production · Q5 event-driven ↔ sre_incident_responder · Q7 memory ↔ remember_user_preferences · Q8 multiagent ↔ coordinate_specialist_team · iteration/eval regression ↔ prompt_versioning_and_rollback.
-
-### Worked examples inside the docs themselves
-
-- **Financial analyst building a DCF model in .xlsx** — the running example of the [Outcomes page](https://platform.claude.com/docs/en/managed-agents/define-outcomes) (rubric-graded spreadsheet deliverable) and the [Skills page](https://platform.claude.com/docs/en/managed-agents/skills) (`xlsx` skill).
-- **Weekly compliance scan** — the running example of the [Scheduled deployments page](https://platform.claude.com/docs/en/managed-agents/scheduled-deployments) (`0 20 * * 5`, America/New_York); the launch post also names **nightly data sync** and **daily digest** as the intended uses.
-- **Coding assistant** — the quickstart's default agent (write code, run it, verify the output file).
-- **Per-end-user agents with vaults** — the [Vaults page](https://platform.claude.com/docs/en/managed-agents/vaults)'s "Alice's Slack digest" pattern: one vault per end user, `external_user_id` in metadata.
+- **Weekly competitor digest** (our running example: Lamis Mukta / Acme Analytics) — a research subagent (`WebSearch`/`WebFetch` only, `settings.json` allow-listed to the competitor domains) writes `outputs/digest.md`, a grader scores it against a 4-criterion rubric, a launchd plist fires it `0 7 * * 1` America/Los_Angeles. This is the canonical recurring-scan shape.
+- **Graded spreadsheet deliverable** — a subagent that runs `openpyxl` via `Bash` to build an `.xlsx`, judged against a file-based rubric by the local grader. The canonical document-analyst shape.
+- **Approve-then-act** — a subagent that investigates and drafts but never executes the consequential step; the consequential tool (a `🔌` MCP call) is left in the `ask` list in `settings.json` so the founder confirms each one. The canonical ops-responder shape.
 
 ---
 
-## 2. Real production deployments (proof points)
+## 2. Why this works without a key or a cloud
 
-For "is anyone actually doing this?" — point at the customer stories in [the evolution of agentic surfaces](https://claude.com/blog/building-with-claude-managed-agents) and [Claude Managed Agents: get to production 10x faster](https://claude.com/blog/claude-managed-agents). The common thread (and the pitch to founders): the agent operates **inside the systems they already use** — codebase, wiki, ticketing, chat — and the managed harness removes the infra build entirely.
-
-Also worth reading: [Scaling Managed Agents: decoupling the brain from the hands](https://www.anthropic.com/engineering/managed-agents) (Anthropic engineering) — the architecture story (brain = model+harness, hands = sandbox, session = the persistent event log), useful framing language for explaining CMA to a founder in one breath.
+The pitch to the founder, in one breath: the agent is **materialized as Claude Code primitives inside a portable `my-agent/` folder** and runs **on the Claude Code login they already have**. There is no Anthropic API key to create, nothing billed per run, and no server-side harness to wait on — drop the folder anywhere Claude Code runs, type `/<name>`, and it works. Scheduling is the same story: a `launchd`/`cron` job runs `claude -p` headless against that same login while they're away, and every run leaves a markdown file in `runs/` so they can see what happened. The "brain" (the subagent + its instructions) and the "hands" (the local tools the `tools:` line and `settings.json` permit) are both files in the folder — that's what makes it portable and inspectable.
 
 ---
 
-## 3. Archetypes to offer (every one traces to an official source)
+## 3. Archetypes to offer (every one maps to a real Claude Code primitive)
 
-| # | Archetype | v0 (today) | Source | Natural next directions |
+| # | Archetype | v0 (today) | Built on (§1) | Natural next directions |
 |---|---|---|---|---|
-| 1 | **Data analyst** | Hand it a CSV/export → narrative HTML report with charts: what's interesting, what changed. | data_analyst_agent cookbook | Weekly scheduled deployment against a fresh export; lives in Slack via the slack_data_bot pattern; their app embeds the report |
-| 2 | **Ops responder with approval** | An alert/event → investigate → draft the fix or PR → stop and wait for human approval. | sre_incident_responder cookbook | Wire to their alerting webhook; custom tools into their backend; always_ask gates |
-| 3 | **Document-producing analyst** | A research/finance task whose deliverable is a graded artifact — e.g. a DCF model in .xlsx judged against a rubric. | Outcomes + Skills docs (DCF example) | File-based rubrics; pptx/docx variants; recurring refresh on a deployment |
-| 4 | **Engineering agent: issue → PR** | Take an issue, fix it, open the PR, recover when CI or review pushes back. | CMA_orchestrate_issue_to_pr + fix_failing_tests cookbooks | GitHub MCP + vault; triggered from their tracker; grounding pass on an unfamiliar repo first (explore_unfamiliar_codebase) |
-| 5 | **Assistant that remembers your users** | A customer-facing helper whose memory store accumulates each user's preferences across sessions. | CMA_remember_user_preferences cookbook | One memory store + one vault per end user; Dreams to consolidate |
-| 6 | **Recurring compliance / digest scan** | A scheduled sweep — weekly compliance scan, nightly data sync, daily digest — that runs and files its report without anyone present. | Scheduled-deployments docs + launch blog | Limited-networking allowlist; webhook notifications; outcome grading per run |
-| 7 | **Specialist team** | A coordinator that delegates to a small roster of scoped specialists (research / review / write) working in parallel. | CMA_coordinate_specialist_team cookbook | Per-specialist models and tools; escalation tier on Opus |
+| 1 | **Data analyst** | Hand it a CSV/export → narrative report (Markdown or HTML) with charts: what's interesting, what changed. The subagent runs `pandas`/`plotly` via `Bash` and writes to `outputs/`. | 🤖 subagent + 📦 tools (`Bash`/`Read`/`Write`) + 🎯 local grader | 🗓️ launchd/cron run against a fresh export each week; 🔌 a Slack MCP to post the summary (gated); embed the HTML report wherever they want |
+| 2 | **Ops responder with approval** | An alert/event → investigate → draft the fix or PR → stop and wait for human approval. The consequential step stays in the `ask` list so nothing fires unattended. | 🤖 subagent + 📦 `settings.json` (`ask` gating) + 🔌 local MCP | Wire to their alerting via a local trigger script; add the backend 🔌 MCP + 🔐 token in `.env`; keep the act step gated to `ask` |
+| 3 | **Document-producing analyst** | A research/finance task whose deliverable is a graded artifact — e.g. a model in `.xlsx` (via `openpyxl`) judged against a rubric by the local grader. | 🤖 subagent + 📄 local libs + 🎯 local grader | File-based rubrics in `outcome.md`; pptx/docx variants (`python-pptx`/`python-docx`); a recurring 🗓️ refresh; promote the house format to a project skill |
+| 4 | **Engineering agent: issue → PR** | Take an issue, fix it, open the PR, recover when CI or review pushes back. The subagent inherits `Bash`/`Read`/`Edit`/`Grep` and runs the repo's own test loop. | 🤖 subagent + 📦 tools + 🔌 GitHub MCP | Add the GitHub 🔌 MCP + 🔐 token in `.env`; trigger from their tracker via a local script; a grounding read of the repo first; keep `gh pr merge` in the `ask` list |
+| 5 | **Assistant that remembers your users** | A helper whose 🧠 `memory/` folder accumulates each user's preferences across runs — it reads the folder at the start of every run and writes back what it learned. | 🤖 subagent + 🧠 `memory/` (read_write) | One subfolder per user under `memory/`; a periodic consolidation pass; a 🔌 MCP into wherever the conversations live |
+| 6 | **Recurring digest / scan** | A scheduled sweep — weekly competitor digest, nightly data sync, daily summary — that runs `claude -p` headless and files its report to `outputs/` + `runs/` with nobody present. | 🗓️ launchd/cron + 🧪 headless + 🎯 local grader | Tighten 📦 `settings.json` to allow `WebFetch` only on the needed domains; add a 🧠 `memory/` snapshot so it reports *changes*; grade each run before it's trusted |
+| 7 | **Specialist team** | A coordinator subagent that delegates to a small roster of scoped specialist subagents (research / review / write) working in parallel. | 🤖×N subagent roster + 📦 per-agent `tools:`/`model:` | Per-specialist `model:` (pin `opus` for the hard tier, `sonnet`/`haiku` for the rest); per-specialist `tools:` scoping; an escalation tier |
 
-Personalization rule: change only the name/company/product slots, one sentence of domain context, and the output format — the underlying config shape comes from the source cookbook/doc.
+Personalization rule: change only the name/company/product slots, one sentence of domain context, and the output format — the underlying config shape (which subagent, which `tools:` line, which rubric, whether it schedules) comes from the archetype.
 
 ---
 
-## 4. Other references
+## 4. Where to point the founder to go deeper
 
-- [Quickstart](https://platform.claude.com/docs/en/managed-agents/quickstart) — the minimal four-call launch; also points at `/claude-api managed-agents-onboard` inside Claude Code.
-- [What's new in Claude Managed Agents](https://claude.com/blog/whats-new-in-claude-managed-agents) — scheduled deployments + env-var vault credentials announcement (June 2026).
-- [anthropics/skills → claude-api/shared/managed-agents-overview.md](https://github.com/anthropics/skills/blob/main/skills/claude-api/shared/managed-agents-overview.md) — how Anthropic's own skills summarize CMA (tone/altitude reference for our SKILL.md).
-- Community walk-throughs exist (Substack/blog tutorials, a third-party onboarding repo) — fine as colour, but always defer to the official docs/cookbooks for API shapes.
+Cite these generically — the live docs win, and exact flag names move.
+
+- **Claude Code subagents docs** — how `.claude/agents/<name>.md` works: frontmatter (`name`/`description`/`tools`/`model`) and the markdown body as the system prompt. The grounding for 🤖.
+- **Claude Code slash commands docs** — `.claude/commands/<name>.md`, `$ARGUMENTS`/`$1`, optional `description`/`argument-hint`/`allowed-tools`/`model`. The grounding for ▶️.
+- **Claude Code settings & permissions docs** — the `permissions` object (`allow`/`ask`/`deny`) and rule syntax like `Bash(…)`, `WebFetch(domain:…)`, `Read(./outputs/**)`. The grounding for 📦.
+- **Claude Code headless mode docs** — `claude -p` and its flags (`--permission-mode`, `--allowedTools`, `--output-format`, `--append-system-prompt`, invoking a subagent). The grounding for 🧪 and every scheduled run.
+- **Claude Code MCP docs** — configuring local MCP servers in `settings.json`/`.mcp.json`. The grounding for 🔌.
+- **Claude Code scheduling** — its native `/schedule`, plus the portable route of `launchd`/`crontab` running `claude -p`. The grounding for 🗓️.
+- See `references/local-runtime.md` in this skill for copy-pasteable shapes of all of the above.
 
 ---
 
 ## 5. Other ideas backlog
 
-Not yet validated against an official example — don't offer in the interview menu.
+Speculative — not yet a known-good local shape. Don't offer in the interview menu; if a founder lands here, scope it back to the nearest §3 archetype first.
 
-- Inbox triage (bucket emails, draft replies, never send)
-- Competitive / market watch (weekly cited digest of competitor changes)
+- Inbox triage (bucket emails, draft replies, never send — would need a mail 🔌 MCP; default-mock until then)
+- Competitive / market watch beyond a single digest (multi-source cited tracking)
 - Support-ticket / review summarizer (cluster by root cause, top-3 fixes)
 - Research-to-brief (one question → decision-ready brief with sources)
 - Investor update drafter (monthly metrics + notes → update draft)
