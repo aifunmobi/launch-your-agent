@@ -7,7 +7,9 @@ A [Claude Code](https://code.claude.com) skill that helps a technical founder bu
 
 The agent runs inside the Claude Code you're already signed in to. No Anthropic API key, no API access, nothing billed per run.
 
-> Reference implementation. Not maintained and not accepting contributions. Licensed under [Apache 2.0](./LICENSE).
+> **Fork note.** This is a community fork of [`anthropics/launch-your-agent`](https://github.com/anthropics/launch-your-agent), reworked to run **entirely locally with no Anthropic API key**. The *upstream* repo builds a cloud Claude Managed Agent and **does** require a key you create at platform.claude.com — so if a page tells you to make an API key, you're reading the original, not this fork.
+
+> Reference implementation, adapted. Licensed under [Apache 2.0](./LICENSE).
 
 **New here?** [`USER-GUIDE.md`](./USER-GUIDE.md) is a one-page walkthrough: install → menu → build → run → schedule.
 
