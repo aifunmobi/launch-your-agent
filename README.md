@@ -13,7 +13,19 @@ The agent runs inside the Claude Code you're already signed in to. No Anthropic 
 
 **New here?** [`USER-GUIDE.md`](./USER-GUIDE.md) is a one-page walkthrough: install → menu → build → run → schedule.
 
-## Quickstart
+## Install (one line)
+
+Clone it and install both skills into your user skills folder so `/launch-your-agent` works in **any** directory:
+
+```bash
+git clone https://github.com/aifunmobi/launch-your-agent.git && mkdir -p ~/.claude/skills && cp -R launch-your-agent/.claude/skills/launch-your-agent launch-your-agent/.claude/skills/wrap-up ~/.claude/skills/
+```
+
+Then open Claude Code anywhere and type `/launch-your-agent`. (No API key — it runs on your existing Claude Code login.)
+
+## Quickstart (no install)
+
+Prefer to just try it in the repo folder? The skills in `.claude/skills/` are picked up automatically when you run Claude Code inside it:
 
 ```bash
 git clone https://github.com/aifunmobi/launch-your-agent.git
@@ -28,8 +40,6 @@ Then type:
 ```
 
 You'll get a small **menu** — build a new agent, start from a template, run/check an existing one, or just see what this does — then it takes you from there. (Already know what you want? Say it on the same line, e.g. `/launch-your-agent build me a weekly competitor digest`, and it skips straight to building.)
-
-The skills in `.claude/skills/` are picked up automatically when you run Claude Code inside this folder — nothing to install. To make `/launch-your-agent` available in **every** folder on your machine, copy both skills into your user skills dir: `cp -R .claude/skills/launch-your-agent .claude/skills/wrap-up ~/.claude/skills/`.
 
 When you're done (or any time later), `/wrap-up` regenerates the overview page, recaps every primitive you now own, and suggests the next 1–2 upgrades.
 
