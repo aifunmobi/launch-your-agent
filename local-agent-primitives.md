@@ -93,7 +93,7 @@ Two parts: **what's installed** (the machine) and **what the agent is allowed to
 One run = one invocation of the agent end-to-end.
 
 - **Interactive:** `claude` in the folder, then type `/<name>`. Simplest path during the build — you watch it work in the same session.
-- **Headless:** `claude -p "<prompt>"` runs non-interactively using the **existing signed-in session — no API key**. This is what a scheduler calls. `run.sh` wraps it: hand the agent `first_prompt.txt`, write the deliverable to `outputs/`, then grade.
+- **Headless:** `claude -p "<prompt>"` runs non-interactively using the **existing signed-in session — no separate API key**. This is what a scheduler calls. `run.sh` wraps it: hand the agent `first_prompt.txt`, write the deliverable to `outputs/`, then grade. (`run.sh` sources `no-api-key-guard.sh` first, so it stops rather than silently bill as API if a key is set — see Headless mode below.)
 - **The task / kickoff** is the prompt text in `first_prompt.txt` — the local equivalent of the kickoff message. Keep **relative dates only** ("today", "the last 7 days") so a scheduled run is correct whenever it fires.
 - **Each run is logged** to `runs/<date>.md` — what was asked, what the agent did, where the deliverable landed, the grader verdict. The `runs/` folder is the history (this replaces any external dashboard).
 - **No statuses to poll, no checkpoints to keep alive, no `usage` token accounting.** A run finishes when the agent stops; the record is the files it left behind.
@@ -217,7 +217,8 @@ The non-interactive surface — what `run.sh` and the scheduler call.
 claude -p "$(cat first_prompt.txt)"
 ```
 
-- Uses the **existing signed-in Claude Code session. No API key, nothing billed per run.**
+- Uses the **existing signed-in Claude Code session. No separate API key, nothing billed per run** — *as long as no Anthropic credential is in the environment.*
+- **⚠️ Billing caveat for this path.** Two things make the headless/scheduled path the exposed one: (1) Anthropic announced (May 2026) then **paused (June 15, 2026)** a change that would bill Agent-SDK/headless usage separately at API rates — paused, not cancelled, with advance notice promised; and (2) a current bug bills headless runs as **API usage** if `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` is set (anthropics/claude-code #43333, #37686). Mitigation: every generated agent ships `no-api-key-guard.sh`, which `run.sh`/`run-evals.sh`/the scheduled job source before any `claude` call — it stops the run if a key/token is present in the env or written into `.env`/`settings.json`. After an unattended run, verify it landed on your subscription, not the API dashboard at platform.claude.com.
 - Useful flags to reach for (describe the capability if a flag name has drifted):
   - `--permission-mode` — how it handles permission prompts in a non-interactive run (so a scheduled run doesn't block waiting for a confirmation).
   - `--allowedTools` — restrict the run to a specific tool set, on top of `settings.json`.
@@ -240,7 +241,7 @@ claude -p "$(cat first_prompt.txt)"
 ## ⚠️ Notable constraints
 
 - **Scheduling is local** — a launchd plist or crontab line running `claude -p`, not a hosted cron (Claude Code's `/schedule` is the convenience alternative). The machine has to be on (or the schedule has to live on a box that is). That's the real trade vs. a cloud worker.
-- **The signed-in session is the budget.** There's no per-agent spend cap to set and nothing billed per run; the limit is whatever your Claude Code plan already gives you.
+- **The signed-in session is the budget.** There's no per-agent spend cap to set and nothing billed per run; the limit is whatever your Claude Code plan already gives you. **One exposure:** the headless/scheduled path bills as API usage if an Anthropic key/token is in the environment, and Anthropic has a paused-for-now plan to bill that path separately. `no-api-key-guard.sh` (sourced by every unattended runner) stops a keyed run; the residual risk is the deferred policy change, so keep an eye on Anthropic's billing notices.
 - **Permissions are the guardrail.** Least-privilege networking (`deny` bare `WebFetch`, `allow` only the needed domains), `ask` on destructive `Bash`, and `read_only` memory are the local equivalents of safety rails — set them in `settings.json` and the subagent body, not in a console.
 - **A scheduled headless run can't ask you a question.** Pre-resolve permissions (`allow` what it needs, `--permission-mode`) so it doesn't stall waiting for a confirmation no one will give at 7 AM.
 - **Portability depends on `environment.md` being honest** — anything the agent shells out to must be listed with its install line, or the folder won't reproduce on the next machine.

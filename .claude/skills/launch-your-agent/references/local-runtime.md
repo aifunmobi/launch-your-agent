@@ -3,7 +3,8 @@
 
 # Local runtime — how to build & run the agent
 
-> The agent is a set of plain files inside `my-agent/.claude/`. There is **no API key, no API access, nothing billed per run** — everything below runs on the Claude Code the founder is already signed into. Drop the `my-agent/` folder anywhere, run `claude` in it, and `/<name>` works.
+> The agent is a set of plain files inside `my-agent/.claude/`. There is **no separate API key to manage and nothing billed per run** — everything below runs on the Claude Code the founder is already signed into. Drop the `my-agent/` folder anywhere, run `claude` in it, and `/<name>` works.
+> **Headless/scheduled caveat (important).** The unattended path (`claude -p`, cron/launchd) draws from the subscription *today*, but it's the path Anthropic has flagged for separate billing: a May 2026 change to bill Agent-SDK/headless usage at API rates was announced, then **paused on June 15, 2026** (they've promised advance notice before any future change). Separately, a current Claude Code bug makes headless runs bill as **API usage** if an Anthropic key/token is set in the environment (anthropics/claude-code #43333, #37686). That's why every generated agent ships `no-api-key-guard.sh` (§5b) — it stops any unattended run that finds a key — and why you should confirm headless runs land on the subscription, not the API dashboard at platform.claude.com.
 > If a flag name below has drifted in the founder's Claude Code version, `claude --help` (or `claude -p --help`) is the live source — check, adapt, retry once. The capability is what matters; the exact flag is the detail.
 
 The running example throughout is **competitor-digest** — Lamis Mukta at Acme Analytics, who spends ~3 hours every Monday pulling competitor pricing and feature changes into a digest for her team. We materialize that as a subagent, a grader, a slash command, settings, a run script, and a schedule.
@@ -21,6 +22,7 @@ my-agent/
   first_prompt.txt      # the kickoff task (relative dates only)
   environment.md        # 📦 what's installed locally
   run.sh                # one run end-to-end → grade → log
+  no-api-key-guard.sh   # 🔐 stops any unattended run if an Anthropic key/token is present
   evals/                # 🧪 cases + run-evals.sh
   memory/               # 🧠 local memory (only if it learns across runs)
   outputs/              # where each run writes its deliverable
@@ -184,11 +186,13 @@ How to read this:
 
 The agent runs in this session, on your signed-in login, and writes `outputs/digest.md`.
 
-**Headless** — for scripts and schedules, `claude -p` runs non-interactively against the **same signed-in session, with no API key**:
+**Headless** — for scripts and schedules, `claude -p` runs non-interactively against the **same signed-in session, with no separate API key**:
 
 ```bash
 claude -p "$(cat first_prompt.txt)"
 ```
+
+⚠️ This only stays key-free if no Anthropic credential is in the environment. If `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` is set (or a Bedrock/Vertex backend is selected), this same command silently bills as **API usage** instead of the subscription (#43333, #37686). Don't unset-and-continue blindly — the guard in §5b is the enforced check; run unattended jobs through `run.sh`, which sources it.
 
 Useful flags:
 - `--permission-mode acceptEdits` — auto-accept file edits so a headless run doesn't stall on a prompt. (`plan` plans without acting; `default` prompts as usual.) For a fully unattended run you can use `--dangerously-skip-permissions`, but prefer a tight `settings.json` allow-list so you don't have to.
@@ -197,7 +201,48 @@ Useful flags:
 - `--append-system-prompt "…"` — bolt one extra instruction onto the agent for this run without editing the subagent file.
 - `--agent <name>` (select a defined subagent) / naming the agent in the prompt body — routes the work to a specific subagent. (Note: `--agents` with an `s` is a different flag that *defines* inline agents from JSON; to run one you already defined in `.claude/agents/`, use the singular `--agent <name>` or just let the prompt delegate by description match.)
 
-Because there is no key, the only prerequisite is that `claude` is on `PATH` and the founder is signed in. A headless run inherits that login.
+Because there's no separate key to manage, the only prerequisite is that `claude` is on `PATH` and the founder is signed in. A headless run inherits that login.
+
+## 5b. no-api-key-guard.sh — keep unattended runs on the subscription
+
+Copy `references/no-api-key-guard.sh` into `my-agent/no-api-key-guard.sh` verbatim (and `chmod +x` it). Every unattended runner — `run.sh`, `evals/run-evals.sh`, any trigger/scheduled script — **sources it after the `cd` into `my-agent/` and before the first `claude` call**. It stops the run with a message if an Anthropic credential is present in the environment **or** has been written into `.env` / `settings.json`, so a misconfigured machine fails loudly instead of silently billing as API. It's safe under `set -euo pipefail` and meant to be sourced (its `exit 1` stops the calling script).
+
+```bash
+#!/usr/bin/env bash
+# no-api-key-guard.sh — keep this agent on your signed-in Claude Code session.
+# Source at the TOP of every unattended runner, after `cd` into my-agent/ and
+# before the first `claude` call. Prints a message and STOPS if a key is found.
+
+_lya_guard_fail() {
+  echo "🛑 launch-your-agent: refusing to run — Anthropic API credential detected." >&2
+  echo "   $1" >&2
+  echo "   This agent runs on your signed-in Claude Code session with NO API key." >&2
+  echo "   A key/token makes headless 'claude -p' bill as API usage instead"        >&2
+  echo "   (anthropics/claude-code #43333, #37686). For one run only:"              >&2
+  echo "     env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN ./run.sh"             >&2
+  echo "   Then confirm the run shows up on your subscription, not platform.claude.com." >&2
+  exit 1
+}
+
+# 1. Environment variables that divert off your subscription.
+[ -n "${ANTHROPIC_API_KEY:-}" ]       && _lya_guard_fail "ANTHROPIC_API_KEY is set in the environment."
+[ -n "${ANTHROPIC_AUTH_TOKEN:-}" ]    && _lya_guard_fail "ANTHROPIC_AUTH_TOKEN is set in the environment."
+[ -n "${CLAUDE_CODE_USE_BEDROCK:-}" ] && _lya_guard_fail "CLAUDE_CODE_USE_BEDROCK is set (routes to AWS Bedrock, not your subscription)."
+[ -n "${CLAUDE_CODE_USE_VERTEX:-}" ]  && _lya_guard_fail "CLAUDE_CODE_USE_VERTEX is set (routes to Google Vertex, not your subscription)."
+
+# 2. A key 'installed' into the folder even if never exported.
+#    (.env is for THIRD-PARTY connector tokens only — never an Anthropic key.)
+for _lya_f in .env .claude/settings.json .claude/settings.local.json; do
+  [ -f "$_lya_f" ] || continue
+  if grep -qiE '^[[:space:]]*"?(ANTHROPIC_API_KEY|ANTHROPIC_AUTH_TOKEN)"?[[:space:]]*[:=]' "$_lya_f"; then
+    _lya_guard_fail "An Anthropic key/token is written into $_lya_f — remove it (this folder is key-free by design)."
+  fi
+done
+
+unset -f _lya_guard_fail; unset _lya_f
+```
+
+The full file (with the longer help text) is `references/no-api-key-guard.sh` — copy that one; the block above is the shape so you can read it inline.
 
 ## 6. run.sh — one run end-to-end
 
@@ -207,6 +252,7 @@ Runs the agent on the task → confirms the deliverable → invokes the grader �
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")"                      # always operate from my-agent/, even under cron
+source ./no-api-key-guard.sh             # 🔐 stop now if an Anthropic key/token is present (no silent API billing)
 DATE="$(date +%F)"                        # e.g. 2026-06-19 — relative, never hard-coded in the task
 mkdir -p outputs runs
 
@@ -265,6 +311,7 @@ evals/
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."                   # run from my-agent/
+source ./no-api-key-guard.sh             # 🔐 same key-free guard as run.sh
 V="${1:?usage: run-evals.sh <version-number>}"
 OUT="evals/results-v${V}.md"
 echo "# Eval results — agent v${V} ($(date +%F))" > "$OUT"

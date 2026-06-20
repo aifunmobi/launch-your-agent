@@ -3,7 +3,7 @@
 
 # launch-your-agent — one-page user guide
 
-Build a **local Claude Code agent** that does a real job for you — research, drafting, analysis, a recurring digest — and (if you want) runs itself on a schedule. **No API key, no cloud, nothing billed per run.** It runs on the Claude Code you're already signed in to.
+Build a **local Claude Code agent** that does a real job for you — research, drafting, analysis, a recurring digest — and (if you want) runs itself on a schedule. **No separate API key, no cloud, nothing billed per run.** It runs on the Claude Code you're already signed in to. (One caveat applies to the headless/scheduled path — see §5.)
 
 ---
 
@@ -83,6 +83,8 @@ Because the whole agent is just files, it's **version-controlled, inspectable, a
 - **On demand:** `cd my-agent && ./run.sh`, or type `/<name>` in Claude Code, or `claude -p "$(cat first_prompt.txt)"`.
 - **On a schedule:** it's already installed (launchd/cron). Check `runs/` for what it's done.
 - **Check status / next steps any time:** `/wrap-up`.
+
+> ⚠️ **Headless/scheduled path — one caveat.** Unattended runs (`claude -p`, cron/launchd) draw from your subscription today, but a paused-for-now Anthropic change could bill this path separately at API rates in future, and a current Claude Code bug bills headless runs as API usage if an Anthropic key/token is set in your environment. Each agent ships `no-api-key-guard.sh` that **stops the run with a message** if it finds one — and after a scheduled run, confirm it landed on your subscription, not `platform.claude.com`. Interactive `/<name>` runs aren't affected.
 
 ---
 

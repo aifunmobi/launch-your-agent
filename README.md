@@ -5,7 +5,7 @@
 
 A [Claude Code](https://code.claude.com) skill that helps a technical founder build whatever they want as a **local Claude Code agent** — an internal worker, a piece of their product, a customer-facing agent. It interviews you about what you want to build, scopes a v0, materializes it as Claude Code primitives on your own machine, runs it, grades it against your own definition of done, iterates, and (if it should run on a clock) puts it on a local cron/launchd schedule — with everything bigger laid out as an explicit v1/v2 plan.
 
-The agent runs inside the Claude Code you're already signed in to. No Anthropic API key, no API access, nothing billed per run.
+The agent runs inside the Claude Code you're already signed in to — no separate Anthropic API key to manage, nothing billed per run. (One nuance on the headless/scheduled path — see [What you need](#what-you-need).)
 
 > **Fork note.** This is a community fork of [`anthropics/launch-your-agent`](https://github.com/anthropics/launch-your-agent), reworked to run **entirely locally with no Anthropic API key**. The *upstream* repo builds a cloud Claude Managed Agent and **does** require a key you create at platform.claude.com — so if a page tells you to make an API key, you're reading the original, not this fork.
 
@@ -50,6 +50,8 @@ When you're done (or any time later), `/wrap-up` regenerates the overview page, 
 - **Nothing billed per run.** There's no per-run cost — the agent uses the session you already have.
 
 (If your design eventually wants a *third-party* connector — say a Slack token — that's a separate, optional thing. It lives in a local `.env`, it is not an Anthropic key, and the default is to mock it until you choose to wire it.)
+
+> ⚠️ **One caveat, on the headless/scheduled path only.** Unattended runs (`claude -p`, cron/launchd) draw from your subscription *today*, but this is the path to watch: Anthropic announced (May 2026) then **paused (June 15)** a change that would bill Agent-SDK/headless usage separately at API rates — paused, not cancelled — and a current Claude Code bug bills headless runs as API usage if an Anthropic key/token is set in your environment ([#43333](https://github.com/anthropics/claude-code/issues/43333), [#37686](https://github.com/anthropics/claude-code/issues/37686)). So: this fork **never creates or installs an Anthropic key**, and every generated agent ships a guard (`no-api-key-guard.sh`) that **stops any unattended run** if it finds one. Interactive `/<name>` runs are unaffected. After a scheduled run, confirm it shows up on your subscription, not the API dashboard at `platform.claude.com`.
 
 ## What you walk away with
 

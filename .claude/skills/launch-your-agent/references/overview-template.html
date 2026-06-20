@@ -177,7 +177,7 @@
         <div class="node-body">
           <div class="field"><div class="field-k">schedule · launchd StartCalendarInterval</div><strong>Every Monday · 7:00 AM</strong> <span class="sub small">America/Los_Angeles</span></div>
           <div class="field"><div class="field-k">Status</div><span class="tag">created after the first run passes</span></div>
-          <div class="field"><div class="field-k">mechanism · what fires</div><p class="small sub">Each firing runs <code>claude -p</code> headless in this folder against <code>first_prompt.txt</code> — using your existing Claude Code login, nobody at a keyboard. A <code>crontab</code> line is the portable option.</p></div>
+          <div class="field"><div class="field-k">mechanism · what fires</div><p class="small sub">Each firing runs <code>claude -p</code> headless in this folder against <code>first_prompt.txt</code> — using your existing Claude Code login, nobody at a keyboard. A <code>crontab</code> line is the portable option. <code>run.sh</code> sources <code>no-api-key-guard.sh</code>, so a stray Anthropic key/token stops the run instead of billing as API.</p></div>
         </div>
         <div class="node-foot">▶️ Also runs on demand any time — <code>run.sh</code> (or <code>/competitor-digest</code>) fires the same agent against the same outcome.</div>
       </div>
